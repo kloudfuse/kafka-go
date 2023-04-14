@@ -28,7 +28,7 @@ type Entry struct {
 
 type Entity struct {
 	EntityType string `kafka:"min=v0,max=v1"`
-	EntityName string `kafka:"min=v0,max=v1",nullable`
+	EntityName string `kafka:"min=v0,max=v1,nullable"`
 }
 
 type Ops struct {
