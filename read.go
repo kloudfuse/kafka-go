@@ -152,7 +152,7 @@ func readIntoAllocatedBytes(r *bufio.Reader, sz int, n int, makeBytes func(lengt
 			shortRead = true
 		}
 
-		b = make([]byte, n)
+		b = makeBytes(n)
 		n, err = io.ReadFull(r, b)
 		b = b[:n]
 		sz -= n
