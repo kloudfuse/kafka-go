@@ -27,29 +27,29 @@ import (
 // by the function and test if it an instance of kafka.WriteErrors in order to
 // identify which messages have succeeded or failed, for example:
 //
-//	// Construct a synchronous writer (the default mode).
-//	w := &kafka.Writer{
-//		Addr:         Addr: kafka.TCP("localhost:9092", "localhost:9093", "localhost:9094"),
-//		Topic:        "topic-A",
-//		RequiredAcks: kafka.RequireAll,
-//	}
-//
-//	...
-//
-//  // Passing a context can prevent the operation from blocking indefinitely.
-//	switch err := w.WriteMessages(ctx, msgs...).(type) {
-//	case nil:
-//	case kafka.WriteErrors:
-//		for i := range msgs {
-//			if err[i] != nil {
-//				// handle the error writing msgs[i]
-//				...
-//			}
+//		// Construct a synchronous writer (the default mode).
+//		w := &kafka.Writer{
+//			Addr:         Addr: kafka.TCP("localhost:9092", "localhost:9093", "localhost:9094"),
+//			Topic:        "topic-A",
+//			RequiredAcks: kafka.RequireAll,
 //		}
-//	default:
-//		// handle other errors
+//
 //		...
-//	}
+//
+//	 // Passing a context can prevent the operation from blocking indefinitely.
+//		switch err := w.WriteMessages(ctx, msgs...).(type) {
+//		case nil:
+//		case kafka.WriteErrors:
+//			for i := range msgs {
+//				if err[i] != nil {
+//					// handle the error writing msgs[i]
+//					...
+//				}
+//			}
+//		default:
+//			// handle other errors
+//			...
+//		}
 //
 // In asynchronous mode, the program may configure a completion handler on the
 // writer to receive notifications of messages being written to kafka:
@@ -577,6 +577,10 @@ func (w *Writer) Close() error {
 	return nil
 }
 
+const (
+	TOPIC_PARTITIONS = "kafka_topic_partitions"
+)
+
 // WriteMessages writes a batch of messages to the kafka topic configured on this
 // writer.
 //
@@ -637,15 +641,20 @@ func (w *Writer) WriteMessages(ctx context.Context, msgs ...Message) error {
 	// to increasing GC work.
 	assignments := make(map[topicPartition][]int32)
 
+	numPartitions, partitionGiven := ctx.Value(TOPIC_PARTITIONS).(int)
+
 	for i, msg := range msgs {
 		topic, err := w.chooseTopic(msg)
 		if err != nil {
 			return err
 		}
 
-		numPartitions, err := w.partitions(ctx, topic)
-		if err != nil {
-			return err
+		if !partitionGiven {
+			var err error
+			numPartitions, err = w.partitions(ctx, topic)
+			if err != nil {
+				return err
+			}
 		}
 
 		partition := balancer.Balance(msg, loadCachedPartitions(numPartitions)...)
